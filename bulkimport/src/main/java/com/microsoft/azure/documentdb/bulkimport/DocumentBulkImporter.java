@@ -481,6 +481,10 @@ public class DocumentBulkImporter implements AutoCloseable {
 		return executeBulkUpdateWithPatchInternal(patchDocuments);
 	}
 	
+	public BulkUpdateResponse updateDocument(String partitionKey, String id, List<UpdateOperationBase> updateOperations) throws DocumentClientException {
+		return executeUpdateDocumentInternal(partitionKey, id, updateOperations);
+	}
+	
 	public BulkReadResponse readDocuments(String groupByProperty) throws DocumentClientException {
 		return executeBulkReadInternal(groupByProperty);
 	}
@@ -808,9 +812,11 @@ public class DocumentBulkImporter implements AutoCloseable {
 		return futureContainer.callAsync(completeAsyncCallback, listeningExecutorService);
 	}
 	
+	//TODO: Make async
 	private BulkReadResponse executeBulkReadAsyncImpl(String groupByProperty) {
           Stopwatch watch = Stopwatch.createStarted();
-			
+  		logger.debug("Beginning bulk read");
+
  		Collection<String> partitionKeyPath = partitionKeyDefinition.getPaths();
 		String partitionKeyProperty = partitionKeyPath.iterator().next().replaceFirst("^/", "");
 	    int numberOfDocumentsRead = 0;
@@ -819,6 +825,7 @@ public class DocumentBulkImporter implements AutoCloseable {
 		List<Exception> failures = new ArrayList<>();
 
 		for (String partitionKeyRangeId: this.partitionKeyRangeIds) {
+  		logger.debug("Beginning read for {}", partitionKeyRangeId);
 		BatchReader batchReader = new BatchReader(
 				partitionKeyRangeId,
 				this.client,
@@ -826,10 +833,10 @@ public class DocumentBulkImporter implements AutoCloseable {
 				partitionKeyProperty,
 				groupByProperty);
 
-		BulkReadStoredProcedureResponse bResponse = batchReader.readAll();
-		documentsRead.add(bResponse.readResults);
-		totalRequestUnitsConsumed += bResponse.requestUnitsConsumed;
-		numberOfDocumentsRead += bResponse.readResults.size();
+		BulkReadStoredProcedureResponse bulkReadStoredProcResponse = batchReader.readAll();
+		documentsRead.add(bulkReadStoredProcResponse.readResults);
+		totalRequestUnitsConsumed += bulkReadStoredProcResponse.requestUnitsConsumed;
+		numberOfDocumentsRead += bulkReadStoredProcResponse.readResults.size();
 		}
 		
         watch.stop();
