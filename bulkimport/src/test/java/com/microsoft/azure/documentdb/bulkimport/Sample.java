@@ -115,7 +115,6 @@ public class Sample {
                 
             }
         }
-
     }
 
     private static int getOfferThroughput(DocumentClient client, DocumentCollection collection) {
