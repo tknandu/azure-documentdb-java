@@ -103,7 +103,7 @@ public class Main {
 
                     BulkImportResponse bulkImportResponse;
 
-					Collection<String> documents = DataMigrationDocumentSource.loadDocuments(cfg.getNumberOfDocumentsForEachCheckpoint(), collection.getPartitionKey());
+                    Collection<String> documents = DataMigrationDocumentSource.loadDocuments(cfg.getNumberOfDocumentsForEachCheckpoint(), collection.getPartitionKey());
 
                     if (documents.size() !=  cfg.getNumberOfDocumentsForEachCheckpoint()) {
                         throw new RuntimeException("not enough documents generated");
@@ -169,15 +169,6 @@ public class Main {
             data = data + data + "0123456789012";
 
             for(int j = 0; j < 10;j++) {
-            	if(j == 3)
-            	{
-            		sb.append(",").append("\"f").append(j).append("\":\"").append("Group1").append("\"");
-            		continue;
-            	} else if (j == 4)
-            	{
-            		sb.append(",").append("\"f").append(j).append("\":\"").append("Group2").append("\"");
-            		continue;
-            	}
                 sb.append(",").append("\"f").append(j).append("\":\"").append(data).append("\"");
             }
 

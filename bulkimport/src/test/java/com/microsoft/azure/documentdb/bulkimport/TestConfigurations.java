@@ -29,8 +29,8 @@ public final class TestConfigurations {
     //"C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==";
     //public static final String HOST = "https://localhost:443/";
 
-    public static String MASTER_KEY = "iFuKZ09VCSVzRgGuZpeVSxGaNttEKI5NfAJOGEPdsU3Uuk4f47WZ7gMmn5GNJtUXBQgOvYH7IW2xwNVou32k9w==";
-    public static String HOST ="https://bharathbtest.documents.azure.com:443/";
+    public static String MASTER_KEY = System.getProperty("ACCOUNT_KEY");
+    public static String HOST = System.getProperty("ACCOUNT_HOST");
     static {
         System.out.println("host is " + System.getProperty("ACCOUNT_HOST"));
     }

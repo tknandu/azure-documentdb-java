@@ -41,7 +41,6 @@ import com.microsoft.azure.documentdb.DocumentClient;
 import com.microsoft.azure.documentdb.DocumentClientException;
 import com.microsoft.azure.documentdb.Undefined;
 import com.microsoft.azure.documentdb.bulkimport.DocumentBulkImporter.Builder;
-import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadResponse;
 
 @RunWith(Parameterized.class)
 public class EndToEndBulkImportTests extends EndToEndTestBase {
@@ -84,28 +83,6 @@ public class EndToEndBulkImportTests extends EndToEndTestBase {
             validateSuccess(deserialize(documents), response);
         }
     }
-    
-    @Test
-    public void bulkRead() throws Exception {
-        Builder bulkImporterBuilder = DocumentBulkImporter.builder().
-                from(client, databaseId, collectionId, this.pCollection.getPartitionKey(),
-                        getOfferThroughput(client, pCollection));
-
-        try (DocumentBulkImporter importer = bulkImporterBuilder.build()) {
-
-            List<String> documents = new ArrayList<>();
-
-            Object [] partitionKeyValues = new Object[] { "abc", null, "", Undefined.Value(), 123, 0, -10, 9,223,372,036,854,775,000, 0.5, true, false };
-
-            for(Object partitionKeyValue: partitionKeyValues) {
-                documents.add(DocumentDataSource.randomDocument(partitionKeyValue, pCollection.getPartitionKey()));
-            }
-
-            BulkImportResponse response = importer.importAll(documents, false);
-            validateSuccess(deserialize(documents), response);
-        }
-    }
-
 
     @Test
     public void bulkImportAlreadyExists() throws Exception {
