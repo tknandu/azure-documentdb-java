@@ -28,21 +28,17 @@ import java.util.List;
 import com.microsoft.azure.documentdb.ConnectionPolicy;
 import com.microsoft.azure.documentdb.ConsistencyLevel;
 import com.microsoft.azure.documentdb.DocumentClient;
-import com.microsoft.azure.documentdb.DocumentClientException;
 import com.microsoft.azure.documentdb.DocumentCollection;
 import com.microsoft.azure.documentdb.FeedResponse;
 import com.microsoft.azure.documentdb.Offer;
 import com.microsoft.azure.documentdb.RetryOptions;
 import com.microsoft.azure.documentdb.bulkimport.DocumentBulkImporter.Builder;
 import com.microsoft.azure.documentdb.bulkimport.Main.DataMigrationDocumentSource;
-import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadResponse;
-import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadStoredProcedureExecutor;
-import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadStoredProcedureResponse;
 
 public class Sample {
 
-    public final static String MASTER_KEY = "iFuKZ09VCSVzRgGuZpeVSxGaNttEKI5NfAJOGEPdsU3Uuk4f47WZ7gMmn5GNJtUXBQgOvYH7IW2xwNVou32k9w==";
-    public final static String HOST ="https://bharathbtest.documents.azure.com:443/";
+    public static final String MASTER_KEY = "[YOUR-MASTERKEY]";
+    public static final String HOST = "[YOUR-ENDPOINT]";
 
     public static void main(String[] args) throws Exception {
 
@@ -79,40 +75,25 @@ public class Sample {
                 //     running bulk import 10 times on 10 bulk of documents each of size 1,000,000 is more preferable
                 //     than running bulk import 100 times on 100 bulk of documents each of size 100,000 documents. 
 
-//                 for(int i = 0; i< 10; i++) {
-//                    Collection<String> docs = DataMigrationDocumentSource.loadDocuments(10, collection.getPartitionKey());
-//                    BulkImportResponse bulkImportResponse = importer.importAll(docs, false);
-//
-//                    // returned stats
-//                    System.out.println("Number of documents inserted: " + bulkImportResponse.getNumberOfDocumentsImported());
-//                    System.out.println("Import total time: " + bulkImportResponse.getTotalTimeTaken());
-//                    System.out.println("Total request unit consumed: " + bulkImportResponse.getTotalRequestUnitsConsumed());
-//
-//                    // validate that all documents in this checkpoint inserted
-//                    if (bulkImportResponse.getNumberOfDocumentsImported() < docs.size()) {
-//                        System.err.println("Some documents failed to get inserted in this checkpoint."
-//                                + " This checkpoint has to get retried with upsert enabled");
-//                        for(int j = 0; j < bulkImportResponse.getErrors().size(); j++) {
-//                            bulkImportResponse.getErrors().get(j).printStackTrace();
-//                        }
-//                        break;
-//                    }
-//                }
-                
-                String parKey = (String) collection.getPartitionKey().getPaths().toArray()[0];
-                
-                String bulkReadSprocLink = String.format("/dbs/%s/colls/%s/sprocs/__bulkPatch", "mydb", "mycol");
-                
-                try {
-         
-                BulkReadResponse response =  importer.readDocuments("f3"); 
-                System.out.println(response.getTotalRequestUnitsConsumed());
-                
+                for(int i = 0; i< 10; i++) {
+                    Collection<String> docs = DataMigrationDocumentSource.loadDocuments(1000000, collection.getPartitionKey());
+                    BulkImportResponse bulkImportResponse = importer.importAll(docs, false);
+
+                    // returned stats
+                    System.out.println("Number of documents inserted: " + bulkImportResponse.getNumberOfDocumentsImported());
+                    System.out.println("Import total time: " + bulkImportResponse.getTotalTimeTaken());
+                    System.out.println("Total request unit consumed: " + bulkImportResponse.getTotalRequestUnitsConsumed());
+
+                    // validate that all documents in this checkpoint inserted
+                    if (bulkImportResponse.getNumberOfDocumentsImported() < docs.size()) {
+                        System.err.println("Some documents failed to get inserted in this checkpoint."
+                                + " This checkpoint has to get retried with upsert enabled");
+                        for(int j = 0; j < bulkImportResponse.getErrors().size(); j++) {
+                            bulkImportResponse.getErrors().get(j).printStackTrace();
+                        }
+                        break;
+                    }
                 }
-                catch(DocumentClientException e)
-                {                	
-                }
-                
             }
         }
 
