@@ -58,6 +58,10 @@ import com.microsoft.azure.documentdb.FeedOptions;
 import com.microsoft.azure.documentdb.PartitionKeyDefinition;
 import com.microsoft.azure.documentdb.PartitionKeyRange;
 import com.microsoft.azure.documentdb.RetryOptions;
+import com.microsoft.azure.documentdb.bulkimport.bulkread.BatchReader;
+import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadResponse;
+import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadStoredProcedureExecutor;
+import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadStoredProcedureResponse;
 import com.microsoft.azure.documentdb.bulkimport.bulkupdate.BatchUpdater;
 import com.microsoft.azure.documentdb.bulkimport.bulkupdate.BulkUpdateResponse;
 import com.microsoft.azure.documentdb.bulkimport.bulkupdate.SetUpdateOperation;
@@ -198,6 +202,11 @@ public class DocumentBulkImporter implements AutoCloseable {
 	 * The name of the stored procedure for bulk update.
 	 */
 	private final static String BULK_UPDATE_STORED_PROCECURE_NAME = "__bulkPatch";
+	
+	/**
+	 * The name of the stored procedure for bulk update.
+	 */
+	private final static String BULK_READ_STORED_PROCECURE_NAME = "__bulkPatch";
 
 	/**
 	 * The maximal sproc payload size sent (as a fraction of 2MB).
@@ -264,6 +273,11 @@ public class DocumentBulkImporter implements AutoCloseable {
 	 */
 	private String bulkUpdateStoredProcLink;
 
+	/**
+	 * Bulk Read Stored Procedure Link relevant to the given collection
+	 */
+	private String bulkReadStoredProcLink;
+	
 	/**
 	 * Collection offer throughput
 	 */
@@ -374,6 +388,7 @@ public class DocumentBulkImporter implements AutoCloseable {
 
 		this.bulkImportStoredProcLink = String.format("%s/sprocs/%s", collectionLink, BULK_IMPORT_STORED_PROCECURE_NAME);
 		this.bulkUpdateStoredProcLink = String.format("%s/sprocs/%s", collectionLink, BULK_UPDATE_STORED_PROCECURE_NAME);
+		this.bulkReadStoredProcLink = String.format("%s/sprocs/%s", collectionLink, BULK_READ_STORED_PROCECURE_NAME);
 
 		logger.trace("Fetching partition map of collection");
 		Range<String> fullRange = new Range<String>(
@@ -468,6 +483,20 @@ public class DocumentBulkImporter implements AutoCloseable {
 	
 	public BulkUpdateResponse updateDocument(String partitionKey, String id, List<UpdateOperationBase> updateOperations) throws DocumentClientException {
 		return executeUpdateDocumentInternal(partitionKey, id, updateOperations);
+	}
+	
+	public BulkReadResponse readDocuments(String groupByProperty) throws DocumentClientException {
+		return executeBulkReadInternal(groupByProperty);
+	}
+	
+	private BulkReadResponse executeBulkReadInternal(String groupByProperty) throws DocumentClientException {
+		try {
+			return executeBulkReadAsyncImpl(groupByProperty);
+
+		} catch(Exception e) {
+			logger.error("Failed to read documents", e);
+			throw toDocumentClientException(e);
+		}
 	}
 
 	private BulkImportResponse executeBulkImportInternal(Collection<String> input,
@@ -781,6 +810,40 @@ public class DocumentBulkImporter implements AutoCloseable {
 		};
 
 		return futureContainer.callAsync(completeAsyncCallback, listeningExecutorService);
+	}
+	
+	//TODO: Make async
+	private BulkReadResponse executeBulkReadAsyncImpl(String groupByProperty) {
+          Stopwatch watch = Stopwatch.createStarted();
+  		logger.debug("Beginning bulk read");
+
+ 		Collection<String> partitionKeyPath = partitionKeyDefinition.getPaths();
+		String partitionKeyProperty = partitionKeyPath.iterator().next().replaceFirst("^/", "");
+	    int numberOfDocumentsRead = 0;
+		double totalRequestUnitsConsumed = 0;
+		List<Object> documentsRead = new ArrayList<Object>();
+		List<Exception> failures = new ArrayList<>();
+
+		for (String partitionKeyRangeId: this.partitionKeyRangeIds) {
+  		logger.debug("Beginning read for {}", partitionKeyRangeId);
+		BatchReader batchReader = new BatchReader(
+				partitionKeyRangeId,
+				this.client,
+				bulkReadStoredProcLink,
+				partitionKeyProperty,
+				groupByProperty);
+
+		BulkReadStoredProcedureResponse bulkReadStoredProcResponse = batchReader.readAll();
+		documentsRead.add(bulkReadStoredProcResponse.readResults);
+		totalRequestUnitsConsumed += bulkReadStoredProcResponse.requestUnitsConsumed;
+		numberOfDocumentsRead += bulkReadStoredProcResponse.readResults.size();
+		}
+		
+        watch.stop();
+
+		BulkReadResponse bulkReadResponse = new BulkReadResponse(numberOfDocumentsRead, totalRequestUnitsConsumed, watch.elapsed(), failures, documentsRead);
+		
+		return bulkReadResponse;      
 	}
 
 	private ListenableFuture<BulkUpdateResponse> executeBulkUpdateWithPatchAsyncImpl(Collection<Document> patchDocuments) {
