@@ -147,7 +147,6 @@ public class BatchReader {
  		BulkReadStoredProcedureResponse returnedResponse = new BulkReadStoredProcedureResponse();
 		try {
 			logger.debug("pki {} Reading partition started", partitionKeyRangeId);
-			Stopwatch stopwatch = Stopwatch.createStarted();
 			double requestUnitsCounsumed = 0;
 			int numberOfThrottles = 0;
 			StoredProcedureResponse response;
@@ -246,8 +245,6 @@ public class BatchReader {
 			}
 
 			logger.debug("pki {} completed", partitionKeyRangeId);
-
-			stopwatch.stop();
 			return returnedResponse;
 		} catch (Exception e) {
 			throw e;
