@@ -486,10 +486,6 @@ public class DocumentBulkImporter implements AutoCloseable {
 		return executeUpdateDocumentInternal(partitionKey, id, updateOperations);
 	}
 	
-//	public BulkReadStoredProcedureResponse readDocuments(String partitionRangeId) throws DocumentClientException {
-//		return executeBulkReadInternal(partitionRangeId);
-//	}
-	
 	public Iterator<Document> readDocuments(String partitionRangeId) throws DocumentClientException {
 		List<Document> returnedDocuments = new ArrayList<Document>();
 		BulkReadStoredProcedureResponse response = executeBulkReadInternal(partitionRangeId);
