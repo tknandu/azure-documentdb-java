@@ -827,7 +827,6 @@ public class DocumentBulkImporter implements AutoCloseable {
 	
 	//TODO: Make async
 	private BulkReadStoredProcedureResponse executeBulkReadAsyncImpl(String partitionRangeId) throws JsonProcessingException {
-        Stopwatch watch = Stopwatch.createStarted();
   		logger.debug("Beginning bulk read");
 
  		Collection<String> partitionKeyPath = partitionKeyDefinition.getPaths();
@@ -841,9 +840,7 @@ public class DocumentBulkImporter implements AutoCloseable {
 				partitionKeyProperty,
 				partitionKeyProperty);
 
-		BulkReadStoredProcedureResponse bulkReadStoredProcResponse = batchReader.readAll();		
-        watch.stop();
-		
+		BulkReadStoredProcedureResponse bulkReadStoredProcResponse = batchReader.readAll();				
 		return bulkReadStoredProcResponse;      
 	}
 
