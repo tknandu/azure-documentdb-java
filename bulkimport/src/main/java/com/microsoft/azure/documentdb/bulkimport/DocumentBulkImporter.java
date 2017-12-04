@@ -485,13 +485,13 @@ public class DocumentBulkImporter implements AutoCloseable {
 		return executeUpdateDocumentInternal(partitionKey, id, updateOperations);
 	}
 	
-	public BulkReadResponse readDocuments(String groupByProperty) throws DocumentClientException {
-		return executeBulkReadInternal(groupByProperty);
+	public BulkReadResponse readDocuments(String partitionRangeId) throws DocumentClientException {
+		return executeBulkReadInternal(partitionRangeId);
 	}
 	
-	private BulkReadResponse executeBulkReadInternal(String groupByProperty) throws DocumentClientException {
+	private BulkReadResponse executeBulkReadInternal(String partitionRangeId) throws DocumentClientException {
 		try {
-			return executeBulkReadAsyncImpl(groupByProperty);
+			return executeBulkReadAsyncImpl(partitionRangeId);
 
 		} catch(Exception e) {
 			logger.error("Failed to read documents", e);
@@ -813,7 +813,7 @@ public class DocumentBulkImporter implements AutoCloseable {
 	}
 	
 	//TODO: Make async
-	private BulkReadResponse executeBulkReadAsyncImpl(String groupByProperty) {
+	private BulkReadResponse executeBulkReadAsyncImpl(String partitionRangeId) {
           Stopwatch watch = Stopwatch.createStarted();
   		logger.debug("Beginning bulk read");
 
@@ -824,20 +824,18 @@ public class DocumentBulkImporter implements AutoCloseable {
 		List<Object> documentsRead = new ArrayList<Object>();
 		List<Exception> failures = new ArrayList<>();
 
-		for (String partitionKeyRangeId: this.partitionKeyRangeIds) {
-  		logger.debug("Beginning read for {}", partitionKeyRangeId);
+		logger.debug("Beginning read for {}", partitionRangeId);
 		BatchReader batchReader = new BatchReader(
-				partitionKeyRangeId,
+				partitionRangeId,
 				this.client,
 				bulkReadStoredProcLink,
 				partitionKeyProperty,
-				groupByProperty);
+				partitionKeyProperty);
 
 		BulkReadStoredProcedureResponse bulkReadStoredProcResponse = batchReader.readAll();
 		documentsRead.add(bulkReadStoredProcResponse.readResults);
 		totalRequestUnitsConsumed += bulkReadStoredProcResponse.requestUnitsConsumed;
 		numberOfDocumentsRead += bulkReadStoredProcResponse.readResults.size();
-		}
 		
         watch.stop();
 

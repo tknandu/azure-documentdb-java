@@ -206,7 +206,7 @@ public class Main {
             // if you are reading documents from disk you can change this to read documents from disk
             return IntStream.range(0, numberOfDocuments).mapToObj(i ->
             {
-                String partitionKeyValue = UUID.randomUUID().toString();
+                String partitionKeyValue = "groupByValueNext";
                 return generateDocument(partitionKeyName, partitionKeyValue);
             }).collect(Collectors.toCollection(() -> allDocs));
         }
