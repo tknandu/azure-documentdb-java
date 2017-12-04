@@ -490,7 +490,7 @@ public class DocumentBulkImporter implements AutoCloseable {
 //		return executeBulkReadInternal(partitionRangeId);
 //	}
 	
-	public List<Document> readDocuments(String partitionRangeId) throws DocumentClientException {
+	public Iterator<Document> readDocuments(String partitionRangeId) throws DocumentClientException {
 		List<Document> returnedDocuments = new ArrayList<Document>();
 		BulkReadStoredProcedureResponse response = executeBulkReadInternal(partitionRangeId);
 		for(Object item : response.readResults)
@@ -503,7 +503,7 @@ public class DocumentBulkImporter implements AutoCloseable {
 				e.printStackTrace();
 			}
 		}
-		return returnedDocuments;
+		return returnedDocuments.iterator();
 	}
 	
 	private BulkReadStoredProcedureResponse executeBulkReadInternal(String partitionRangeId) throws DocumentClientException {
