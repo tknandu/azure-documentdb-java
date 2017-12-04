@@ -42,6 +42,8 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.AsyncCallable;
@@ -59,7 +61,6 @@ import com.microsoft.azure.documentdb.PartitionKeyDefinition;
 import com.microsoft.azure.documentdb.PartitionKeyRange;
 import com.microsoft.azure.documentdb.RetryOptions;
 import com.microsoft.azure.documentdb.bulkimport.bulkread.BatchReader;
-import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadResponse;
 import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadStoredProcedureExecutor;
 import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadStoredProcedureResponse;
 import com.microsoft.azure.documentdb.bulkimport.bulkupdate.BatchUpdater;
@@ -485,11 +486,27 @@ public class DocumentBulkImporter implements AutoCloseable {
 		return executeUpdateDocumentInternal(partitionKey, id, updateOperations);
 	}
 	
-	public BulkReadResponse readDocuments(String partitionRangeId) throws DocumentClientException {
-		return executeBulkReadInternal(partitionRangeId);
+//	public BulkReadStoredProcedureResponse readDocuments(String partitionRangeId) throws DocumentClientException {
+//		return executeBulkReadInternal(partitionRangeId);
+//	}
+	
+	public List<Document> readDocuments(String partitionRangeId) throws DocumentClientException {
+		List<Document> returnedDocuments = new ArrayList<Document>();
+		BulkReadStoredProcedureResponse response = executeBulkReadInternal(partitionRangeId);
+		for(Object item : response.readResults)
+		{
+			ObjectMapper mapper = new ObjectMapper();
+			try {
+				returnedDocuments.add(new Document(mapper.writeValueAsString(item)));
+			} catch (JsonProcessingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return returnedDocuments;
 	}
 	
-	private BulkReadResponse executeBulkReadInternal(String partitionRangeId) throws DocumentClientException {
+	private BulkReadStoredProcedureResponse executeBulkReadInternal(String partitionRangeId) throws DocumentClientException {
 		try {
 			return executeBulkReadAsyncImpl(partitionRangeId);
 
@@ -813,16 +830,12 @@ public class DocumentBulkImporter implements AutoCloseable {
 	}
 	
 	//TODO: Make async
-	private BulkReadResponse executeBulkReadAsyncImpl(String partitionRangeId) {
-          Stopwatch watch = Stopwatch.createStarted();
+	private BulkReadStoredProcedureResponse executeBulkReadAsyncImpl(String partitionRangeId) throws JsonProcessingException {
+        Stopwatch watch = Stopwatch.createStarted();
   		logger.debug("Beginning bulk read");
 
  		Collection<String> partitionKeyPath = partitionKeyDefinition.getPaths();
 		String partitionKeyProperty = partitionKeyPath.iterator().next().replaceFirst("^/", "");
-	    int numberOfDocumentsRead = 0;
-		double totalRequestUnitsConsumed = 0;
-		List<Object> documentsRead = new ArrayList<Object>();
-		List<Exception> failures = new ArrayList<>();
 
 		logger.debug("Beginning read for {}", partitionRangeId);
 		BatchReader batchReader = new BatchReader(
@@ -832,16 +845,10 @@ public class DocumentBulkImporter implements AutoCloseable {
 				partitionKeyProperty,
 				partitionKeyProperty);
 
-		BulkReadStoredProcedureResponse bulkReadStoredProcResponse = batchReader.readAll();
-		documentsRead.add(bulkReadStoredProcResponse.readResults);
-		totalRequestUnitsConsumed += bulkReadStoredProcResponse.requestUnitsConsumed;
-		numberOfDocumentsRead += bulkReadStoredProcResponse.readResults.size();
-		
+		BulkReadStoredProcedureResponse bulkReadStoredProcResponse = batchReader.readAll();		
         watch.stop();
-
-		BulkReadResponse bulkReadResponse = new BulkReadResponse(numberOfDocumentsRead, totalRequestUnitsConsumed, watch.elapsed(), failures, documentsRead);
 		
-		return bulkReadResponse;      
+		return bulkReadStoredProcResponse;      
 	}
 
 	private ListenableFuture<BulkUpdateResponse> executeBulkUpdateWithPatchAsyncImpl(Collection<Document> patchDocuments) {
