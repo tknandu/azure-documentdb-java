@@ -22,12 +22,18 @@
  */
 package com.microsoft.azure.documentdb.bulkimport.bulkread;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.microsoft.azure.documentdb.Document;
 
 public class BulkReadStoredProcedureResponse {
+	
+	BulkReadStoredProcedureResponse()
+	{
+		readResults = new ArrayList<Object>();
+	}
 
 	/**
 	 * Represents the read results.
@@ -36,7 +42,7 @@ public class BulkReadStoredProcedureResponse {
 	public List<Object> readResults;
 
 	/**
-	 * Represents the group by key value upto which read.
+	 * Represents the group by key value up to which read.
 	 */
 	@JsonProperty("continuationGroupByKey")
 	public String continuationPk;

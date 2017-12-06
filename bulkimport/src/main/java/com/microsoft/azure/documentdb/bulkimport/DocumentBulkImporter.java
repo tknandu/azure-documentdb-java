@@ -42,6 +42,8 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.AsyncCallable;
@@ -58,6 +60,9 @@ import com.microsoft.azure.documentdb.FeedOptions;
 import com.microsoft.azure.documentdb.PartitionKeyDefinition;
 import com.microsoft.azure.documentdb.PartitionKeyRange;
 import com.microsoft.azure.documentdb.RetryOptions;
+import com.microsoft.azure.documentdb.bulkimport.bulkread.BatchReader;
+import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadStoredProcedureExecutor;
+import com.microsoft.azure.documentdb.bulkimport.bulkread.BulkReadStoredProcedureResponse;
 import com.microsoft.azure.documentdb.bulkimport.bulkupdate.BatchUpdater;
 import com.microsoft.azure.documentdb.bulkimport.bulkupdate.BulkUpdateResponse;
 import com.microsoft.azure.documentdb.bulkimport.bulkupdate.SetUpdateOperation;
@@ -198,6 +203,11 @@ public class DocumentBulkImporter implements AutoCloseable {
 	 * The name of the stored procedure for bulk update.
 	 */
 	private final static String BULK_UPDATE_STORED_PROCECURE_NAME = "__bulkPatch";
+	
+	/**
+	 * The name of the stored procedure for bulk update.
+	 */
+	private final static String BULK_READ_STORED_PROCECURE_NAME = "__bulkPatch";
 
 	/**
 	 * The maximal sproc payload size sent (as a fraction of 2MB).
@@ -265,6 +275,11 @@ public class DocumentBulkImporter implements AutoCloseable {
 	private String bulkUpdateStoredProcLink;
 
 	/**
+	 * Bulk Read Stored Procedure Link relevant to the given collection
+	 */
+	private String bulkReadStoredProcLink;
+	
+	/**
 	 * Collection offer throughput
 	 */
 	private int collectionThroughput;
@@ -278,7 +293,7 @@ public class DocumentBulkImporter implements AutoCloseable {
 	 * Max Update Mini Batch Count
 	 */
 	private int maxUpdateMiniBatchCount;
-
+	
 	private RetryOptions retryOptions;
 
 	private void setMaxMiniBatchSize(int size) {
@@ -374,6 +389,7 @@ public class DocumentBulkImporter implements AutoCloseable {
 
 		this.bulkImportStoredProcLink = String.format("%s/sprocs/%s", collectionLink, BULK_IMPORT_STORED_PROCECURE_NAME);
 		this.bulkUpdateStoredProcLink = String.format("%s/sprocs/%s", collectionLink, BULK_UPDATE_STORED_PROCECURE_NAME);
+		this.bulkReadStoredProcLink = String.format("%s/sprocs/%s", collectionLink, BULK_READ_STORED_PROCECURE_NAME);
 
 		logger.trace("Fetching partition map of collection");
 		Range<String> fullRange = new Range<String>(
@@ -468,6 +484,32 @@ public class DocumentBulkImporter implements AutoCloseable {
 	
 	public BulkUpdateResponse updateDocument(String partitionKey, String id, List<UpdateOperationBase> updateOperations) throws DocumentClientException {
 		return executeUpdateDocumentInternal(partitionKey, id, updateOperations);
+	}
+	
+	public Iterator<Document> readDocuments(String partitionRangeId, int maxBatchSize) throws DocumentClientException {
+		List<Document> returnedDocuments = new ArrayList<Document>();
+		BulkReadStoredProcedureResponse response = executeBulkReadInternal(partitionRangeId, maxBatchSize);
+		for(Object item : response.readResults)
+		{
+			ObjectMapper mapper = new ObjectMapper();
+			try {
+				returnedDocuments.add(new Document(mapper.writeValueAsString(item)));
+			} catch (JsonProcessingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return returnedDocuments.iterator();
+	}
+	
+	private BulkReadStoredProcedureResponse executeBulkReadInternal(String partitionRangeId, int maxBatchSize) throws DocumentClientException {
+		try {
+			return executeBulkReadAsyncImpl(partitionRangeId, maxBatchSize);
+
+		} catch(Exception e) {
+			logger.error("Failed to read documents", e);
+			throw toDocumentClientException(e);
+		}
 	}
 
 	private BulkImportResponse executeBulkImportInternal(Collection<String> input,
@@ -781,6 +823,26 @@ public class DocumentBulkImporter implements AutoCloseable {
 		};
 
 		return futureContainer.callAsync(completeAsyncCallback, listeningExecutorService);
+	}
+	
+	//TODO: Make async
+	private BulkReadStoredProcedureResponse executeBulkReadAsyncImpl(String partitionRangeId, int maxBatchSize) throws JsonProcessingException {
+  		logger.debug("Beginning bulk read");
+        
+ 		Collection<String> partitionKeyPath = partitionKeyDefinition.getPaths();
+		String partitionKeyProperty = partitionKeyPath.iterator().next().replaceFirst("^/", "");
+
+		logger.debug("Beginning read for {}", partitionRangeId);
+		BatchReader batchReader = new BatchReader(
+				partitionRangeId,
+				this.client,
+				bulkReadStoredProcLink,
+				partitionKeyProperty,
+				partitionKeyProperty,
+				maxBatchSize);
+
+		BulkReadStoredProcedureResponse bulkReadStoredProcResponse = batchReader.readAll();				
+		return bulkReadStoredProcResponse;      
 	}
 
 	private ListenableFuture<BulkUpdateResponse> executeBulkUpdateWithPatchAsyncImpl(Collection<Document> patchDocuments) {
