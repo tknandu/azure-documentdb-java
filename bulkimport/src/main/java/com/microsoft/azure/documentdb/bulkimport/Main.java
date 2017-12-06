@@ -206,7 +206,8 @@ public class Main {
             // if you are reading documents from disk you can change this to read documents from disk
             return IntStream.range(0, numberOfDocuments).mapToObj(i ->
             {
-                String partitionKeyValue = "groupByValueNext";
+                String partitionKeyValue =  (i) + "testGroupBy";
+                System.out.println(partitionKeyValue);
                 return generateDocument(partitionKeyName, partitionKeyValue);
             }).collect(Collectors.toCollection(() -> allDocs));
         }

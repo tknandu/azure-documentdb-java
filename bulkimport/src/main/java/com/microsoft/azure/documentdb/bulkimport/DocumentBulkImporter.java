@@ -293,7 +293,7 @@ public class DocumentBulkImporter implements AutoCloseable {
 	 * Max Update Mini Batch Count
 	 */
 	private int maxUpdateMiniBatchCount;
-
+	
 	private RetryOptions retryOptions;
 
 	private void setMaxMiniBatchSize(int size) {
@@ -486,9 +486,9 @@ public class DocumentBulkImporter implements AutoCloseable {
 		return executeUpdateDocumentInternal(partitionKey, id, updateOperations);
 	}
 	
-	public Iterator<Document> readDocuments(String partitionRangeId) throws DocumentClientException {
+	public Iterator<Document> readDocuments(String partitionRangeId, int maxBatchSize) throws DocumentClientException {
 		List<Document> returnedDocuments = new ArrayList<Document>();
-		BulkReadStoredProcedureResponse response = executeBulkReadInternal(partitionRangeId);
+		BulkReadStoredProcedureResponse response = executeBulkReadInternal(partitionRangeId, maxBatchSize);
 		for(Object item : response.readResults)
 		{
 			ObjectMapper mapper = new ObjectMapper();
@@ -502,9 +502,9 @@ public class DocumentBulkImporter implements AutoCloseable {
 		return returnedDocuments.iterator();
 	}
 	
-	private BulkReadStoredProcedureResponse executeBulkReadInternal(String partitionRangeId) throws DocumentClientException {
+	private BulkReadStoredProcedureResponse executeBulkReadInternal(String partitionRangeId, int maxBatchSize) throws DocumentClientException {
 		try {
-			return executeBulkReadAsyncImpl(partitionRangeId);
+			return executeBulkReadAsyncImpl(partitionRangeId, maxBatchSize);
 
 		} catch(Exception e) {
 			logger.error("Failed to read documents", e);
@@ -826,9 +826,9 @@ public class DocumentBulkImporter implements AutoCloseable {
 	}
 	
 	//TODO: Make async
-	private BulkReadStoredProcedureResponse executeBulkReadAsyncImpl(String partitionRangeId) throws JsonProcessingException {
+	private BulkReadStoredProcedureResponse executeBulkReadAsyncImpl(String partitionRangeId, int maxBatchSize) throws JsonProcessingException {
   		logger.debug("Beginning bulk read");
-
+        
  		Collection<String> partitionKeyPath = partitionKeyDefinition.getPaths();
 		String partitionKeyProperty = partitionKeyPath.iterator().next().replaceFirst("^/", "");
 
@@ -838,7 +838,8 @@ public class DocumentBulkImporter implements AutoCloseable {
 				this.client,
 				bulkReadStoredProcLink,
 				partitionKeyProperty,
-				partitionKeyProperty);
+				partitionKeyProperty,
+				maxBatchSize);
 
 		BulkReadStoredProcedureResponse bulkReadStoredProcResponse = batchReader.readAll();				
 		return bulkReadStoredProcResponse;      

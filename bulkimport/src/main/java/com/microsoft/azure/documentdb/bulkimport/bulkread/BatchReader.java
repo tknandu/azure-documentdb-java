@@ -102,6 +102,11 @@ public class BatchReader {
 	 * The document client to use.
 	 */
 	protected DocumentClient client;
+	
+	/**
+	 *  The maximum batch size allowed
+	 */
+	public int maxBatchSize;
 
 	/**
 	 * Request options specifying the underlying partition key range id.
@@ -110,7 +115,7 @@ public class BatchReader {
 
 	protected static final ObjectMapper objectMapper = new ObjectMapper();
 
-	public BatchReader(String partitionKeyRangeId, DocumentClient client, String bulkReadSprocLink, String partitionKeyProperty, String groupByProperty) {
+	public BatchReader(String partitionKeyRangeId, DocumentClient client, String bulkReadSprocLink, String partitionKeyProperty, String groupByProperty, int maxBatchSize) {
 
 		this.partitionKeyRangeId = partitionKeyRangeId;
 		this.client = client;
@@ -120,6 +125,7 @@ public class BatchReader {
 		this.totalRequestUnitsConsumed = new AtomicDouble();
 		this.documentsRead = new ArrayList<Object>();
 		this.groupByProperty = groupByProperty;
+		this.maxBatchSize = maxBatchSize;
 		
 		class RequestOptionsInternal extends RequestOptions {
 			RequestOptionsInternal(String partitionKeyRangeId) {
@@ -166,7 +172,7 @@ public class BatchReader {
             
 				do {
 					BulkReadStoredProcedureResponse bResponse = null;
-					response = client.executeStoredProcedure(bulkreadSprocLink, requestOptions, new Object[] { groupByProperty, lastContinuationPk, lastContinuationToken, 5000, null });
+					response = client.executeStoredProcedure(bulkreadSprocLink, requestOptions, new Object[] { groupByProperty, lastContinuationPk, lastContinuationToken, maxBatchSize, null });
 	
 					bResponse = parseFrom(response);
 	
